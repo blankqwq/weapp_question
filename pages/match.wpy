@@ -1,0 +1,60 @@
+<style>
+</style>
+<template>
+  <view class="container">
+      <view class="weui-cells__title">Are you ready?</view>
+    <navigator   url="/pages/ranking/question">
+     <button class="weui-btn" type="primary" >开始比赛</button>
+   </navigator>
+  </view>
+  <view class="weui-cells__title">当前信息</view>
+  <view class="weui-cells weui-cells_after-title">
+         <view class="weui-cell">
+           <view class="weui-cell__bd">比赛次数</view>
+           <view class="weui-cell__ft">{{ countTimes}}</view>
+         </view>
+   </view>
+   <view class="weui-cells weui-cells_after-title">
+         <view class="weui-cell">
+           <view class="weui-cell__bd">当前最高分</view>
+           <view class="weui-cell__ft">{{ maxFraction }}</view>
+         </view>
+     </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import 'wepy-async-function'
+  import api from '@/utils/api'
+
+  export default class Match extends wepy.page {
+    data={
+      maxFraction: 0,
+      countTimes: 3
+    }
+    async onShow() {
+      try {
+        // 打开页面自动调用一次登录
+        let rankInfo = await api.authRequest({
+          url: 'rankInfo',
+          method: 'GET'
+        })
+        if (rankInfo.statusCode === 200) {
+          this.maxFraction = rankInfo.data.maxFraction
+          this.countTimes = rankInfo.data.countTimes
+          this.$apply()
+        } else {
+          wepy.showModal({
+            title: '提示',
+            content: '请登录，如登录成功也无法进入，请通知管理员'
+          })
+        }
+      } catch (err) {
+        wepy.showModal({
+          title: '提示',
+          content: '服务器错误，请联系管理员'
+        })
+      }
+    }
+  }
+</script>

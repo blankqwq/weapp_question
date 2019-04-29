@@ -1,0 +1,131 @@
+<style>
+</style>
+<template>
+  <view class="page__bd">
+        <view class="weui-search-bar">
+            <view class="weui-search-bar__form">
+                <view class="weui-search-bar__box">
+                    <icon class="weui-icon-search_in-box" type="search" size="14"/>
+                    <input type="text" class="weui-search-bar__input" placeholder="搜索电话号码" value="{{inputVal}}" focus="{{inputShowed}}" @input="inputTyping"/>
+                    <view class="weui-icon-clear"  wx:if="{{inputVal.length > 0}}" @tap="clearInput">
+                        <icon type="clear" size="14"/>
+                    </view>
+                </view>
+                <label class="weui-search-bar__label" hidden="{{inputShowed}}" @tap="showInput">
+                    <icon class="weui-icon-search" type="search" size="14"/>
+                    <view class="weui-search-bar__text">输入电话号码设置奖品状态</view>
+                </label>
+            </view>
+            <view class="weui-search-bar__cancel-btn" hidden="{{!inputShowed}}" @tap="hideInput">取消</view>
+        </view>
+        <view class="weui-cells searchbar-result"  wx:if="{{inputVal.length > 0}}">
+            <repeat for="{{descUser}}" key="index" index="index" item="item" >
+              <view class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                   <view class="weui-cell__hd">
+                       <image src="{{item.avatar}}" style="margin-right: 5px;vertical-align: middle;width:20px; height: 20px;"/>
+                   </view>
+                   <view class="weui-cell__bd">{{item.name}}</view>
+                   <view data-id="{{item.id}}" class="weui-cell__ft weui-cell__ft_in-access" @tap='give'>{{if(!item.can_gift.length===0)?'发放奖品':'已发放奖品'}}</view>
+               </view>
+          </repeat>
+        </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import 'wepy-async-function'
+  import api from '@/utils/api'
+
+  export default class Liping extends wepy.page {
+    data={
+      maxFraction: 0,
+      countTimes: 3,
+      inputShowed: true,
+      inputVal: '',
+      descUser: null
+    }
+
+    methods={
+      clearInput() {
+        this.inputVal = ''
+      },
+      showInput: function showInput() {
+        this.inputShowed = true
+      },
+      hideInput() {
+        this.inputVal = ''
+        this.inputShowed = false
+      },
+      async inputTyping(e) {
+        this.inputVal = e.detail.value
+        try {
+          let user = await api.authRequest({
+            url: 'goGift',
+            method: 'GET',
+            data: {
+              phone: this.inputVal
+            }
+          })
+          if (user.statusCode === 200) {
+            this.descUser = user.data
+            this.$apply()
+          } else {
+            wepy.showModal({
+              title: '提示',
+              content: '该号段下并没有可以发放礼品的用户'
+            })
+          }
+        } catch (err) {
+          wepy.showModal({
+            title: '提示',
+            content: '服务器错误，请联系管理员'
+          })
+        }
+      },
+      async give(e) {
+        var oneUser = e.currentTarget.dataset.id
+        try {
+          let gift = await api.authRequest({
+            url: 'giveGift',
+            method: 'POST',
+            data: {
+              id: oneUser
+            }
+          })
+          if (gift.statusCode === 200) {
+            wepy.showModal({
+              title: '提示',
+              content: '礼品发放成功'
+            })
+            let user = await api.authRequest({
+              url: 'goGift',
+              method: 'GET',
+              data: {
+                phone: this.inputVal
+              }
+            })
+            if (user.statusCode === 200) {
+              this.descUser = user.data
+              this.$apply()
+            }
+            this.$apply()
+          } else {
+            wepy.showModal({
+              title: '提示',
+              content: '未知错误'
+            })
+          }
+        } catch (err) {
+          wepy.showModal({
+            title: '提示',
+            content: '服务器错误，请联系管理员'
+          })
+        }
+      }
+    }
+    async onShow() {
+
+    }
+  }
+</script>

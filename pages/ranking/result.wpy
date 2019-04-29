@@ -1,0 +1,103 @@
+<template>
+  <view class="page__bd">
+
+        <view class="weui-panel__hd">最后的成绩</view>
+        <view class="weui-cells weui-cells_after-title">
+             <view class="weui-cell">
+                 <view class="weui-cell__bd">类型</view>
+                 <view class="weui-cell__ft">{{type}}</view>
+             </view>
+       </view>
+        <view class="weui-cells weui-cells_after-title">
+             <view class="weui-cell">
+                 <view class="weui-cell__bd">成绩</view>
+                 <view class="weui-cell__ft">{{fraction}}</view>
+             </view>
+       </view>
+       <view class="weui-cells weui-cells_after-title">
+           <view class="weui-cell">
+             <view class="weui-cell__bd">错题数目</view>
+             <view class="weui-cell__ft">{{countError}}</view>
+           </view>
+       </view>
+       <navigator url="/pages/users/errbook" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                 <view class="weui-cell__bd">打开错题本</view>
+                 <view class="weui-cell__ft weui-cell__ft_in-access"/>
+       </navigator>
+       <repeat for="{{questions}}" key="index" index="index" item="item" >
+       <view class="weui-panel__hd">题目:{{item.title}} </view>
+        <view class="weui-panel__bd">
+              <view class="weui-media-box weui-media-box_small-appmsg">
+                 <view class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                     <view class="weui-cell__hd"><icon type="success" size="23" hidden="{{item.trues !== 'A'}}" /></view>
+                     <view class="weui-cell__bd weui-cell_primary">
+                         <view>{{item.optionA}}</view>
+                     </view>
+                 </view>
+             </view>
+             <view class="weui-media-box weui-media-box_small-appmsg">
+                <view class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                    <view class="weui-cell__hd"><icon type="success" size="23"  hidden="{{item.trues !== 'B'}}" /></view>
+                    <view class="weui-cell__bd weui-cell_primary">
+                        <view>{{item.optionB}}</view>
+                    </view>
+                </view>
+            </view>
+            <view class="weui-media-box weui-media-box_small-appmsg">
+               <view class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                   <view class="weui-cell__hd"><icon type="success" size="23" hidden="{{item.trues !== 'C' }}"  /></view>
+                   <view class="weui-cell__bd weui-cell_primary">
+                       <view>{{item.optionC}}</view>
+                   </view>
+               </view>
+           </view>
+           <view class="weui-media-box weui-media-box_small-appmsg">
+              <view class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                  <view class="weui-cell__hd"><icon type="success" size="23" hidden="{{item.trues !== 'D'}}" /></view>
+                  <view class="weui-cell__bd weui-cell_primary">
+                      <view>{{item.optionD}}</view>
+                  </view>
+              </view>
+          </view>
+       </view>
+     </repeat>
+ </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import 'wepy-async-function'
+  import api from '@/utils/api'
+
+  export default class Index extends wepy.page {
+      // 获取成绩数据
+    data ={
+      fraction: 0,
+      countError: 0,
+      errors: [],
+      questions: [],
+      anwser: ['A', 'B', 'C', 'D'],
+      type: ''
+    }
+    async onLoad() {
+      wx.showLoading({
+        title: '读取中 ...',
+        mask: true
+      })
+      let fraction = await api.authRequest({
+        url: 'lastFraction',
+        method: 'GET'
+      })
+      console.log(fraction.data.fraction)
+      if (fraction.statusCode === 200) {
+        wx.hideLoading()
+        this.fraction = fraction.data.fraction
+        this.countError = fraction.data.errors.length
+        this.errors = fraction.data.errors
+        this.questions = fraction.data.questions
+        this.type = fraction.data.type
+        this.$apply()
+      }
+    }
+  }
+</script>

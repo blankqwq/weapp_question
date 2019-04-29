@@ -1,0 +1,172 @@
+<template>
+  <view class="page__bd">
+
+      <view class="weui-panel__hd">首页功能</view>
+
+
+  <swiper indicator-dots="{{indicatorDots}}" autoplay="{{autoplay}}" interval="{{interval}}" duration="{{duration}}">
+        <repeat for="{{imgUrls}}">
+          <swiper-item>
+            <view  hover-class="navigator-hover">
+              <image src="{{item.url}}" class="slide-image" />
+            </view>
+          </swiper-item>
+        </repeat>
+      </swiper>
+
+
+     <view class="weui-cells weui-cells_after-title">
+           <navigator url="/pages/ranking/test" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                     <view class="weui-cell__hd">
+                         <image src="../images/test.png" style="margin-right: 5px;vertical-align: middle;width:20px; height: 20px;"/>
+                     </view>
+                     <view class="weui-cell__bd">练习答题</view>
+                     <view class="weui-cell__ft weui-cell__ft_in-access"/>
+             </navigator>
+                <navigator url="/pages/match" class="weui-cell weui-cell_access" hover-class="weui-cell_active" @tap='goMatch'>
+                         <view class="weui-cell__hd">
+                             <image src="../images/match.png" style="margin-right: 5px;vertical-align: middle;width:20px; height: 20px;"/>
+                         </view>
+                         <view class="weui-cell__bd">排位赛</view>
+                         <view class="weui-cell__ft weui-cell__ft_in-access"/>
+                 </navigator>
+                <navigator url="/pages/ranking/one" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                         <view class="weui-cell__hd">
+                             <image src="../images/one.png" style="margin-right: 5px;vertical-align: middle;width:20px; height: 20px;"/>
+                         </view>
+                         <view class="weui-cell__bd">单人比赛</view>
+                         <view class="weui-cell__ft weui-cell__ft_in-access"/>
+                 </navigator>
+                 <navigator url="/pages/top/index" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                           <view class="weui-cell__hd">
+                               <image src="../images/ranking.png" style="margin-right: 5px;vertical-align: middle;width:20px; height: 20px;"/>
+                           </view>
+                           <view class="weui-cell__bd">比赛排行</view>
+                           <view class="weui-cell__ft weui-cell__ft_in-access"/>
+                   </navigator>
+                 <navigator url="/pages/suggest" class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                           <view class="weui-cell__hd">
+                               <image src="../images/form.png" style="margin-right: 5px;vertical-align: middle;width:20px; height: 20px;"/>
+                           </view>
+                           <view class="weui-cell__bd">意见反馈</view>
+                           <view class="weui-cell__ft weui-cell__ft_in-access"/>
+                   </navigator>
+                   <button wx:if="{{canIUse}}" open-type="getUserInfo" bindgetuserinfo="bindGetUserInfo">授权登录</button>
+                   <view wx:else>
+                      <view  class="weui-cell weui-cell_access" hover-class="weui-cell_active">
+                        <view class="weui-cell__bd">登录成功</view>
+                      </view>
+                    </view>
+         </view>
+ </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import api from '@/utils/api'
+  import 'wepy-async-function'
+  export default class Index extends wepy.page {
+    config = {
+      navigationBarTitleText: '学习首页'
+    }
+
+    methods ={
+      goMatch() {
+        wepy.switchTab({
+          url: '/pages/match'
+        })
+      },
+      goOne() {
+        wepy.navigateTo({
+          url: '/pages/ranking/one'
+        })
+      },
+      async bindGetUserInfo(e) {
+        let code = await wepy.login()
+        let user = e.detail.userInfo
+        let req = await api.request({
+          url: 'weapp/create',
+          method: 'POST',
+          data: {
+            name: user.nickName,
+            avatar: user.avatarUrl,
+            weapp: code.code
+          }
+        })
+        if (req.statusCode === 201) {
+          wepy.setStorageSync('access_token', req.data.access_token)
+          wepy.setStorageSync('access_token_expired_at', new Date().getTime() + req.data.expires_in * 1000)
+          this.canIUse = false
+          this.$apply()
+        }
+      }
+    }
+    data = {
+      imgUrls: [
+        {
+          url: '../images/1.jpg'
+        }, {
+          url: '../images/2.jpg'
+        }, {
+          url: '../images/3.jpg'
+        }
+      ],
+      indicatorDots: true,  // 小点
+      autoplay: true,  // 是否自动轮播
+      interval: 3000,  // 间隔时间
+      duration: 3000,
+      canIUse: true
+    }
+    // 获取当前登录用户信息
+    async getCurrentUser () {
+   // 如果用户未登录
+      if (!this.checkLogin()) {
+        return null
+      }
+
+   // 从缓存中获取用户信息
+      let user = wepy.getStorageSync('user')
+
+      try {
+     // 登录了但是缓存中没有，请求接口获取
+        if (!user) {
+          let userResponse = await api.authRequest('user')
+       // 状态码为 200 表示请求成功
+          if (userResponse.statusCode === 200) {
+            user = userResponse.data
+            wepy.setStorageSync('user', user)
+          }
+        }
+      } catch (err) {
+        console.log(err)
+        wepy.showModal({
+          title: '提示',
+          content: '服务器错误，请联系管理员'
+        })
+      }
+
+      return user
+    }
+
+    async onShow() {
+      if (this.checkLogin()) {
+        this.canIUse = false
+        this.$apply()
+      }
+      let notice = await api.request({
+        url: 'notice',
+        method: 'GET'
+      })
+        // 登录成功返回上一页
+      if (notice.statusCode === 200) {
+        this.imgUrls = notice.data.imgUrls
+        this.$apply()
+      }
+    }
+
+ // 用户是否已经登录
+    checkLogin () {
+      return (wepy.getStorageSync('access_token') !== '')
+    }
+  }
+</script>

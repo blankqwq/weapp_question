@@ -1,0 +1,258 @@
+<style lang="less">
+
+page{
+  background-image: url("https://i.loli.net/2019/04/23/5cbeb4b72db78.jpg");
+  font-size: 16px;
+}
+.question {
+  position: absolute;
+  top: 10%;
+  left: 10%;
+  width: 80%;
+  bottom: 0;
+  color: white;
+}
+
+
+.title {
+  font-size: 36rpx;
+  font-weight: bold;
+  margin-bottom: 20px;
+}
+
+.choices {
+  position: absolute;
+  top: 16%;
+  left: 3%;
+  width: 97%;
+  font-size: 15px;
+}
+
+.choices label {
+  display: block;
+  padding: 20rpx 0;
+  position: relative;
+}
+
+.choices text {
+  position: absolute;
+  top: 50%;
+  left: 70rpx;
+  transform: translateY(-50%);
+}
+
+.countDown {
+  position: absolute;
+  left: 20%;
+  width: 60%;
+  bottom: 10%;
+  text-align: center;
+}
+
+.nextQuestion {
+  font-size: 42rpx;
+  color: white;
+  width: 70%;
+  border: 6rpx solid white;
+  line-height: 2;
+  border-radius: 12rpx;
+  margin: 0 auto;
+}
+
+.ico-clock {
+  width: 25rpx;
+  height: 25rpx;
+  margin: 0 10rpx -1rpx 0;
+}
+
+.countDown text {
+  color: #fce803;
+  font-size: 24rpx;
+}
+</style>
+<template>
+<view class="weui-panel__hd">个人排位赛</view>
+  <view class="full-page">
+      <!-- <image class="background" src="/images/background.jpg" /> -->
+     <repeat for="{{Questions}}" key="index" index="index" item="item" >
+      <view class="question" hidden="{{index != currentIndex}}">
+          <view class="title">{{item.title}}</view>
+          <radio-group class="choices" data-qid="{{index}}" bindchange="answerSelect">
+            <label  >
+                <radio value="A" /> <text>{{item.optionA}}</text></radio>
+            </label>
+            <label  >
+                <radio value="B" /> <text>{{item.optionB}}</text></radio>
+            </label>
+            <label  >
+                <radio value="C" /> <text>{{item.optionC}}</text></radio>
+            </label>
+            <label >
+                <radio value="D" /> <text>{{item.optionD}}</text></radio>
+            </label>
+        </radio-group>
+      </view>
+    </repeat>
+
+      <view class="countDown">
+          <view class="nextQuestion" @tap="nextQuestion">{{questionButtonText}}</view>
+          <image class="ico-clock" src="../..//images/clock.png" />
+          <text @tag='time'>本页答题时间剩余 {{couent}} 秒</text>
+      </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import 'wepy-async-function'
+  import api from '@/utils/api'
+
+  export default class Question extends wepy.page {
+    data = {
+    // 用户信息
+      loadingComplete: false,
+      Questions: [],
+      currentIndex: 0,
+      questionButtonText: '下一题',
+      remainSeconds: 10,
+      timerCounter: 0,
+      type: 'match',
+      visitorAnswers: [],
+      couent: ''
+    }
+
+    methods ={
+      answerSelect(e) {
+        let index = this.data.currentIndex
+        this.visitorAnswers[index] = e.detail.value
+      }
+    }
+
+    async onLoad() {
+      wx.showLoading({
+        title: '读取中 ...',
+        mask: true
+      })
+      let questions = await api.authRequest({
+        url: 'createMatch',
+        method: 'GET'
+      })
+      console.log(questions.data.questions)
+      if (questions.statusCode === 200) {
+        wx.hideLoading()
+        this.Questions = questions.data.questions
+        this.remainSeconds = questions.data.time
+        this.$apply()
+        var num = this.remainSeconds
+        clearTimeout(this.countTime)
+        this.countdown(num)
+      } else if (questions.statusCode === 406) {
+        wx.hideLoading()
+        wepy.showModal({
+          title: '拜托哦',
+          content: '你没机会了,请等待明天'
+        })
+      }
+    }
+
+    async nextQuestion() {
+      let that = this
+      let index = this.currentIndex
+      let total = this.Questions.length - 1
+      let answer = this.visitorAnswers[index]
+      if (answer === undefined) {
+        return wx.showToast({ title: '请选择答案', icon: 'warning' })
+      }
+      index++
+      var num = this.remainSeconds
+      if (index < total) {
+        this.currentIndex = index
+        clearTimeout(this.countTime)
+        this.countdown(this.remainSeconds)
+      } else if (index === total) {
+        this.currentIndex = index
+        this.questionButtonText = '完 成'
+        this.$apply()
+      } else {
+        clearTimeout(this.countTime)
+        this.timerCounter = 1
+        let fraction = await api.authRequest({
+          url: 'getFraction',
+          method: 'POST',
+          data: {
+            'answers': this.visitorAnswers,
+            'type': this.type
+          }
+        })
+        if (fraction.statusCode === 201) {
+          wepy.showToast({
+            title: '提交成功',
+            icon: 'success'
+          })
+           // 跳转到我的页面
+          wx.navigateTo({
+            url: '/pages/ranking/result'
+          })
+        } else {
+          wepy.showToast({
+            title: fraction.data.message,
+            icon: 'error;'
+          })
+          wx.navigateTo({
+            url: '/pages/ranking/result'
+          })
+        }
+      }
+    }
+
+    countdown(num) {
+      clearTimeout(this.countTime)
+      let that = this
+      that.couent = that.dateformat(num)
+      that.$apply()
+      console.log(that.dateformat(num))
+      if (num <= 0) {
+        if (this.timerCounter > 0) {
+          return
+        }
+        let index = this.data.currentIndex
+        let answer = this.visitorAnswers[index]
+        if (answer === undefined) {
+          this.visitorAnswers[index] = ''
+          answer = ''
+        }
+        num = this.remainSeconds
+        clearTimeout(this.countTime)
+        this.nextQuestion()
+        return
+      }
+      this.countTime = setTimeout(function() {
+        let newnum = num - 1
+        that.countdown(newnum)
+      }, 1000)
+    }
+
+    dateformat(microSecond) {
+      var second = Math.floor(microSecond)
+      var hr = this.fillZeroPrefix(Math.floor(second / 3600))
+      var min = this.fillZeroPrefix(Math.floor((second - hr * 3600) / 60))
+      var sec = this.fillZeroPrefix((second - hr * 3600 - min * 60))// equal to => var sec = second % 60;
+      return hr + ':' + min + ':' + sec
+    }
+
+    fillZeroPrefix(num) {
+      return num < 10 ? '0' + num : num
+    }
+
+    navigateBack() {
+      wx.navigateBack({ delta: 1 })
+    }
+    onShareAppMessage() {
+      // return appData.ShareMessage;
+    }
+
+    onUnload() {
+      clearTimeout(this.countTime)
+    }
+}
+</script>

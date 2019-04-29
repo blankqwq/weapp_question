@@ -1,0 +1,124 @@
+<style lang="less">
+.avatar-wrap {
+  position: relative;
+  margin-right: 10px;
+}
+.avatar {
+  width: 50px;
+  height: 50px;
+  display: block;
+  border-radius: 50%;
+}
+.logout {
+  margin-top: 30px;
+}
+.introduction {
+  font-size: 13px;
+  color: #888888;
+}
+</style>
+<template>
+  <view class="page">
+    <view class="page__bd" >
+      <view class="weui-cells weui-cells_after-title">
+        <!-- 已登录 -->
+        <navigator class="weui-cell" wx:if="{{ user }}" url="/pages/users/edit">
+          <view class="weui-cell__hd avatar-wrap">
+            <image class="avatar" src="{{ user.avatar }}"/>
+          </view>
+          <view class="weui-cell__bd">
+            <view>{{ user.name }}</view>
+            <view class="page__desc">{{ user.introduction || '' }}</view>
+          </view>
+          <view class="weui-cell__ft weui-cell__ft_in-access"></view>
+      </navigator>
+        <!-- 未登录 -->
+        <navigator class="weui-cell" wx:else url="/pages/auth/login">
+          <view class="weui-cell__hd avatar-wrap">
+              <image src="/images/user.png" class="avatar"/>
+          </view>
+          <view class="weui-cell__bd">
+              <view>未登录</view>
+          </view>
+          <view class="weui-cell__ft weui-cell__ft_in-access"></view>
+        </navigator>
+        <navigator class="weui-cell weui-cell_access" url="/pages/users/errbook">
+          <view class="weui-cell__bd" url="">
+            <view class="weui-cell__bd">我的错题</view>
+            <!-- //错题数据库 -->
+          </view>
+          <view class="weui-cell__ft weui-cell__ft_in-access"></view>
+        </navigator>
+        <navigator class="weui-cell weui-cell_access" url="/pages/ranking/result">
+          <view class="weui-cell__bd" url="">
+            <view class="weui-cell__bd">上一次成绩</view>
+            <!-- //直接展示 -->
+          </view>
+          <view class="weui-cell__ft weui-cell__ft_in-access"></view>
+        </navigator>
+        <view class="weui-cell weui-cell_access" url="">
+          <view class="weui-cell__bd" url="">
+            <view class="weui-cell__bd">我的排名</view>
+            <!-- //直接在用户中获取即可 -->
+          </view>
+         <view class="weui-cell__ft">{{ user.top }}</view>
+       </view>
+       <!-- <navigator class="weui-cell weui-cell_access" url="/pages/admin/liping">
+         <view class="weui-cell__bd" url="">
+           <view class="weui-cell__bd">礼品发放</view>
+         </view>
+         <view class="weui-cell__ft weui-cell__ft_in-access"></view>
+       </navigator> -->
+      </view>
+      <view class="page__bd page__bd_spacing logout">
+        <button class="weui-btn" type="warn" wx:if="{{ user }}" @tap="logout">退出登录</button>
+      </view>
+    </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import api from '@/utils/api'
+
+  export default class UserMe extends wepy.page {
+    config = {
+      navigationBarTitleText: '我的'
+    }
+    data = {
+    // 用户信息
+      user: null
+    }
+    async onShow() {
+      // 获取缓存中的 access_token
+      let accessToken = wepy.getStorageSync('access_token')
+
+      // Token 存在则说明已登录
+      if (accessToken) {
+        // 测试 authRequest 接口
+        let userResponse = await api.authRequest('user')
+        this.user = userResponse.data.data
+        this.$apply()
+      }
+    }
+    methods = {
+        // 退出登录方法
+      async logout (e) {
+        try {
+          let logoutResponse = await api.logout()
+
+          if (logoutResponse.statusCode === 204) {
+            this.user = null
+            this.$apply()
+          }
+        } catch (err) {
+          console.log(err)
+          wepy.showModal({
+            title: '提示',
+            content: '服务器错误，请联系管理员'
+          })
+        }
+      }
+    };
+    }
+</script>

@@ -1,0 +1,224 @@
+<style lang="less">
+
+page{
+  background-image: url("https://i.loli.net/2019/04/23/5cbeb4b72db78.jpg");
+  font-size: 16px;
+}
+.question {
+  position: absolute;
+  top: 10%;
+  left: 10%;
+  width: 80%;
+  bottom: 0;
+  color: white;
+}
+
+.title {
+  font-size: 36rpx;
+  font-weight: bold;
+}
+
+.choices {
+  position: absolute;
+  top: 16%;
+  left: 3%;
+  width: 97%;
+}
+
+.choices label {
+  display: block;
+  padding: 20rpx 0;
+  position: relative;
+}
+
+.choices text {
+  position: absolute;
+  top: 50%;
+  left: 70rpx;
+  transform: translateY(-50%);
+}
+
+.countDown {
+  position: absolute;
+  left: 20%;
+  width: 60%;
+  bottom: 10%;
+  text-align: center;
+}
+
+.nextQuestion {
+  font-size: 42rpx;
+  color: white;
+  width: 70%;
+  border: 6rpx solid white;
+  line-height: 2;
+  border-radius: 12rpx;
+  margin: 0 auto;
+}
+
+.ico-clock {
+  width: 25rpx;
+  height: 25rpx;
+  margin: 0 10rpx -1rpx 0;
+}
+
+.countDown text {
+  color: #fce803;
+  font-size: 24rpx;
+}
+</style>
+<template>
+<view class="weui-panel__hd">练习答题</view>
+  <view class="full-page">
+      <!-- <image class="background" src="/images/background.jpg" /> -->
+     <repeat for="{{Questions}}" key="index" index="index" item="item" >
+      <view class="question" hidden="{{index != currentIndex}}">
+          <view class="title">{{item.title}}</view>
+          <radio-group class="choices" data-qid="{{index}}" bindchange="answerSelect">
+            <label  >
+                <radio value="A" /> <text>{{item.optionA}}</text></radio>
+            </label>
+            <label  >
+                <radio value="B" /> <text>{{item.optionB}}</text></radio>
+            </label>
+            <label  >
+                <radio value="C" /> <text>{{item.optionC}}</text></radio>
+            </label>
+            <label >
+                <radio value="D" /> <text>{{item.optionD}}</text></radio>
+            </label>
+        </radio-group>
+      </view>
+    </repeat>
+
+      <view class="countDown">
+          <view class="nextQuestion" @tap="nextQuestion">{{questionButtonText}}</view>
+          <image class="ico-clock" src="../..//images/clock.png" />
+          <text @tag='time'>本页答题时间剩余 {{remainSeconds}} 秒</text>
+      </view>
+  </view>
+</template>
+
+<script>
+  import wepy from 'wepy'
+  import 'wepy-async-function'
+  import api from '@/utils/api'
+
+  export default class Test extends wepy.page {
+    data = {
+    // 用户信息
+      loadingComplete: false,
+      Questions: [],
+      currentIndex: 0,
+      questionButtonText: '下一题',
+      remainSeconds: 10,
+      timerCounter: null,
+      type: 'test'
+    }
+
+    methods ={
+      answerSelect(e) {
+        let index = this.data.currentIndex
+        this.visitorAnswers[index] = e.detail.value
+        if (e.detail.value === this.Questions[index].trues) {
+          wepy.showModal({
+            title: '恭喜',
+            content: '答案正确'
+          })
+        } else {
+          wepy.showModal({
+            title: '拜托哦',
+            content: '答案错误'
+          })
+        }
+      }
+    }
+    timerCounter= null
+    visitorAnswers= []
+    async onLoad() {
+      wx.showLoading({
+        title: '读取中 ...',
+        mask: true
+      })
+      let questions = await api.authRequest({
+        url: 'createTest',
+        method: 'GET'
+      })
+      console.log(questions.data.questions)
+      if (questions.statusCode === 200) {
+        wx.hideLoading()
+        this.Questions = questions.data.questions
+        this.remainSeconds = questions.data.time
+        this.$apply()
+      }
+    }
+    async nextQuestion() {
+      let index = this.currentIndex
+      let total = this.Questions.length - 1
+      let answer = this.visitorAnswers[index]
+      if (answer === undefined) {
+        return wx.showToast({ title: '请选择答案', icon: 'warning' })
+      }
+      index++
+      this.countDown()
+      if (index < total) {
+        this.currentIndex = index
+      } else if (index === total) {
+        this.currentIndex = index
+        this.questionButtonText = '完 成'
+        this.$apply()
+      } else {
+        clearInterval(this.timerCounter)
+        let fraction = await api.authRequest({
+          url: 'getFraction',
+          method: 'POST',
+          data: {
+            'answers': this.visitorAnswers,
+            'type': this.type
+          }
+        })
+        if (fraction.statusCode === 201) {
+          wepy.showToast({
+            title: '提交成功',
+            icon: 'success'
+          })
+           // 跳转到我的页面
+          this.$navigate('/pages/ranking/result')
+        } else {
+          wepy.showToast({
+            title: fraction.data.message,
+            icon: 'error;'
+          })
+          this.$navigate('/pages/ranking/result')
+        }
+      }
+    }
+    countDown() {
+      clearInterval(this.timerCounter)
+      this.remainSeconds = 20
+      this.timerCounter = setInterval(() => {
+        let remainSeconds = this.remainSeconds - 1
+        if (remainSeconds > 0) {
+          this.remainSeconds = remainSeconds
+        } else {
+          let index = this.data.currentIndex
+          let answer = this.visitorAnswers[index]
+          if (answer === undefined) {
+            this.visitorAnswers[index] = ''
+          }
+          this.nextQuestion()
+        }
+      }, 1000)
+    }
+
+    navigateBack() {
+      wx.navigateBack({ delta: 1 })
+    }
+    onShareAppMessage() {
+      // return appData.ShareMessage;
+    }
+    onUnload() {
+      clearTimeout(this.timerCounter)
+    }
+}
+</script>
